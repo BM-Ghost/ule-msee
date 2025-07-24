@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "setup:complete": "node scripts/pnpm-setup.js",
+    "dev:both": "concurrently \"pnpm run backend\" \"next dev\"",
+    "backend:setup": "node scripts/pnpm-setup.js",
+    "backend:start": "node scripts/start-backend.js"
+  }
+}
