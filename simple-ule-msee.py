@@ -316,8 +316,6 @@ def main():
     """Main function"""
     print("🧠 Ule Msee AI Assistant - Simple Backend")
     print("=" * 50)
-    print("🔧 Using minimal dependencies to avoid conflicts")
-    print("🔑 Using Groq API Key from v0 integration")
     print("🌍 Starting server on http://localhost:8000")
     print("=" * 50)
     

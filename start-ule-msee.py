@@ -444,8 +444,6 @@ def main():
     """Main function"""
     print("🧠 Ule Msee AI Assistant - Complete Backend (Fixed)")
     print("=" * 50)
-    print("🔧 Using compatible Pydantic version 2.8.2")
-    print("🔑 Using Groq API Key from v0 integration")
     print("🌍 Starting server on all interfaces (0.0.0.0:8000)")
     print("=" * 50)
     
