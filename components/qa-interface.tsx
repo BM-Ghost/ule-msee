@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -10,9 +9,9 @@ import { Card } from "@/components/ui/card"
 import { Send, AlertCircle, CheckCircle, Loader2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import ResponseDisplay from "@/components/response-display"
 import SetupGuide from "@/components/setup-guide"
 import { askQuestion, checkBackendHealth } from "@/lib/api"
+import ResponseDisplay from "@/components/response-display"
 
 interface ConnectionState {
   isConnected: boolean
@@ -21,11 +20,16 @@ interface ConnectionState {
   error: string | null
 }
 
+interface ChatMessage {
+  type: "user" | "ulemsee"
+  content: string
+}
+
 export default function QAInterface() {
   const [question, setQuestion] = useState("")
-  const [response, setResponse] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [showSetupGuide, setShowSetupGuide] = useState(false)
+  const [chatLog, setChatLog] = useState<ChatMessage[]>([])
   const [connectionState, setConnectionState] = useState<ConnectionState>({
     isConnected: false,
     isChecking: true,
@@ -35,11 +39,9 @@ export default function QAInterface() {
   const { toast } = useToast()
   const router = useRouter()
 
-  // Check backend connection on component mount and periodically
   useEffect(() => {
     const checkConnection = async () => {
       setConnectionState((prev) => ({ ...prev, isChecking: true, error: null }))
-
       try {
         const isHealthy = await checkBackendHealth()
         setConnectionState({
@@ -48,7 +50,6 @@ export default function QAInterface() {
           lastChecked: new Date(),
           error: null,
         })
-
         if (!isHealthy) {
           setShowSetupGuide(true)
         }
@@ -64,19 +65,14 @@ export default function QAInterface() {
       }
     }
 
-    // Initial check
     checkConnection()
-
-    // Periodic health checks every 30 seconds
     const interval = setInterval(checkConnection, 30000)
-
     return () => clearInterval(interval)
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validate input
     if (!question.trim()) {
       toast({
         title: "Empty question",
@@ -95,7 +91,6 @@ export default function QAInterface() {
       return
     }
 
-    // Check connection before submitting
     if (!connectionState.isConnected) {
       toast({
         title: "Connection Error",
@@ -106,18 +101,15 @@ export default function QAInterface() {
       return
     }
 
+    const userQuestion = question.trim()
+    setChatLog((prev) => [...prev, { type: "user", content: userQuestion }])
     setIsLoading(true)
-    setResponse("")
     setShowSetupGuide(false)
+    setQuestion("")
 
     try {
-      const data = await askQuestion(question.trim())
-      setResponse(data.response)
-
-      // Clear the question after successful submission
-      setQuestion("")
-
-      // Refresh to update history
+      const data = await askQuestion(userQuestion)
+      setChatLog((prev) => [...prev, { type: "ulemsee", content: data.response }])
       router.refresh()
 
       toast({
@@ -125,10 +117,8 @@ export default function QAInterface() {
         description: "Ule Msee has provided an answer to your question.",
       })
     } catch (error) {
-      console.error("Error asking question:", error)
       const errorMessage = error instanceof Error ? error.message : "Failed to get a response from Ule Msee."
 
-      // Handle different types of errors
       if (errorMessage.includes("Unable to connect") || errorMessage.includes("fetch")) {
         setConnectionState((prev) => ({ ...prev, isConnected: false, error: errorMessage }))
         setShowSetupGuide(true)
@@ -170,7 +160,6 @@ export default function QAInterface() {
 
   const retryConnection = async () => {
     setConnectionState((prev) => ({ ...prev, isChecking: true, error: null }))
-
     try {
       const isHealthy = await checkBackendHealth()
       setConnectionState({
@@ -179,7 +168,6 @@ export default function QAInterface() {
         lastChecked: new Date(),
         error: null,
       })
-
       if (isHealthy) {
         setShowSetupGuide(false)
         toast({
@@ -200,7 +188,6 @@ export default function QAInterface() {
 
   return (
     <div className="space-y-6">
-      {/* Connection Status Alert */}
       {!connectionState.isConnected && !connectionState.isChecking && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -220,10 +207,34 @@ export default function QAInterface() {
         </Alert>
       )}
 
+      <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+        {chatLog.map((msg, idx) => (
+          msg.type === "ulemsee" ? (
+            <Card key={idx} className="p-4 bg-muted w-full">
+              <div className="text-sm font-semibold text-purple-700 dark:text-purple-300">Ule Msee</div>
+              <ResponseDisplay content={msg.content} />
+            </Card>
+          ) : (
+            <Card key={idx} className="p-4 bg-blue-100 dark:bg-blue-900 ml-auto max-w-[80%]">
+              <div className="text-sm font-semibold text-blue-700 dark:text-blue-300">You</div>
+              <p className="text-base">{msg.content}</p>
+            </Card>
+          )
+        ))}
+        {isLoading && (
+          <Card className="p-4 bg-muted w-full">
+            <div className="flex items-center space-x-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Ule Msee is thinking...</span>
+            </div>
+          </Card>
+        )}
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="relative">
           <Textarea
-            placeholder="Ask Ule Msee a question... (e.g., 'Explain quantum computing' or 'What are the benefits of renewable energy?')"
+            placeholder="Ask Ule Msee a question..."
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             className="min-h-[120px] resize-none pr-12 text-base"
@@ -238,31 +249,12 @@ export default function QAInterface() {
             </Button>
           </div>
         </div>
-
         {question.trim() && (
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Press Enter or click Send to ask Ule Msee your question
           </p>
         )}
       </form>
-
-      {isLoading && (
-        <Card className="p-6">
-          <div className="flex items-center justify-center space-x-2">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            <span className="text-gray-600 dark:text-gray-300">Ule Msee is thinking and preparing your answer...</span>
-          </div>
-        </Card>
-      )}
-
-      {response && !isLoading && (
-        <Card className="p-6">
-          <div className="mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Ule Msee's Response</h3>
-          </div>
-          <ResponseDisplay content={response} />
-        </Card>
-      )}
 
       {showSetupGuide && <SetupGuide />}
     </div>

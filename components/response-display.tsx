@@ -24,7 +24,7 @@ export default function ResponseDisplay({ content }: ResponseDisplayProps) {
 
   return (
     <div className="relative">
-      <div className="absolute top-0 right-0">
+      <div className="absolute -top-8 right-0">
         <Button
           variant="ghost"
           size="sm"
